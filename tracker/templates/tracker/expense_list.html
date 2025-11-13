@@ -1,0 +1,62 @@
+{% extends 'tracker/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between mb-3">
+    <h2>Expense Tracker</h2>
+    <div>
+      <a href="{% url 'export_csv' %}" class="btn btn-info me-2">Export CSV</a>
+      <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
+    </div>
+  </div>
+
+  <!-- Filters + Search -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-2">
+      <select name="category" class="form-select">
+        <option value="">All Categories</option>
+        <option value="FOOD" {% if selected_category == "FOOD" %}selected{% endif %}>Food</option>
+        <option value="TRAVEL" {% if selected_category == "TRAVEL" %}selected{% endif %}>Travel</option>
+        <option value="BILLS" {% if selected_category == "BILLS" %}selected{% endif %}>Bills</option>
+        <option value="SHOPPING" {% if selected_category == "SHOPPING" %}selected{% endif %}>Shopping</option>
+        <option value="OTHER" {% if selected_category == "OTHER" %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+    </div>
+    <div class="col-md-2">
+      <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  <!-- Expense Table -->
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Category</th>
+        <th>Description</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for expense in expenses %}
+      <tr>
+        <td>{{ expense.date }}</td>
+        <td>{{ expense.category }}</td>
+        <td>{{ expense.description }}</td>
+        <td>{{ expense.amount }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="text-center">No expenses found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

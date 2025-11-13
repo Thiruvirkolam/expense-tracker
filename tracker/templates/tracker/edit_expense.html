@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Expense</title>
+</head>
+<body>
+    <h2>Edit Expense</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <label>Title:</label><br>
+        <input type="text" name="title" value="{{ expense.title }}" required><br><br>
+
+        <label>Amount:</label><br>
+        <input type="number" step="0.01" name="amount" value="{{ expense.amount }}" required><br><br>
+
+        <label>Category:</label><br>
+        <select name="category">
+            {% for key, value in expense.CATEGORY_CHOICES %}
+                <option value="{{ key }}" {% if key == expense.category %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label>Date:</label><br>
+        <input type="date" name="date" value="{{ expense.date|date:'Y-m-d' }}" required><br><br>
+
+        <label>Notes:</label><br>
+        <textarea name="notes">{{ expense.notes }}</textarea><br><br>
+
+        <button type="submit">Update</button>
+    </form>
+    <a href="{% url 'expense_list' %}">Back</a>
+</body>
+</html>
