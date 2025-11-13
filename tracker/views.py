@@ -7,9 +7,10 @@ from django.db.models.functions import TruncMonth
 from django.http import HttpResponse
 from .models import Expense
 from datetime import datetime
-import csv
+import csv, json
+import openpyxl
 
-# -------- AUTH --------
+# ---------------- AUTH VIEWS ----------------
 def signup_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -42,7 +43,7 @@ def logout_view(request):
     return redirect('login')
 
 
-# -------- EXPENSE VIEWS --------
+# ---------------- EXPENSE VIEWS ----------------
 @login_required(login_url='login')
 def expense_list(request):
     expenses = Expense.objects.filter(user=request.user).order_by('-date')
@@ -64,7 +65,7 @@ def expense_list(request):
     if search:
         expenses = expenses.filter(Q(title__icontains=search) | Q(notes__icontains=search))
 
-    # --- Totals & Charts ---
+    # --- Totals & Chart Data ---
     total = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
 
     category_data = expenses.values('category').annotate(total=Sum('amount')).order_by('-total')
@@ -98,7 +99,9 @@ def add_expense(request):
             amount=request.POST.get('amount'),
             category=request.POST.get('category'),
             date=request.POST.get('date'),
-            notes=request.POST.get('notes')
+            notes=request.POST.get('notes'),
+            recurring=('recurring' in request.POST),
+            recurrence_type=request.POST.get('recurrence_type', 'NONE')
         )
         return redirect('expense_list')
     return render(request, 'tracker/add_expense.html')
@@ -113,6 +116,8 @@ def edit_expense(request, id):
         expense.category = request.POST.get('category')
         expense.date = request.POST.get('date')
         expense.notes = request.POST.get('notes')
+        expense.recurring = ('recurring' in request.POST)
+        expense.recurrence_type = request.POST.get('recurrence_type', 'NONE')
         expense.save()
         return redirect('expense_list')
     return render(request, 'tracker/edit_expense.html', {'expense': expense})
@@ -125,15 +130,61 @@ def delete_expense(request, id):
     return redirect('expense_list')
 
 
-# -------- EXPORT CSV --------
+# ---------------- EXPORT CSV ----------------
 @login_required(login_url='login')
 def export_csv(request):
     expenses = Expense.objects.filter(user=request.user).order_by('-date')
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="expenses.csv"'
-
     writer = csv.writer(response)
     writer.writerow(['Title', 'Amount', 'Category', 'Date', 'Notes'])
     for exp in expenses:
         writer.writerow([exp.title, exp.amount, exp.category, exp.date, exp.notes])
     return response
+
+
+# ---------------- EXPORT XLSX ----------------
+@login_required(login_url='login')
+def export_xlsx(request):
+    expenses = Expense.objects.filter(user=request.user).order_by('-date')
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Expenses"
+    sheet.append(['Title', 'Amount', 'Category', 'Date', 'Notes'])
+    for exp in expenses:
+        sheet.append([exp.title, float(exp.amount), exp.category, exp.date.strftime("%Y-%m-%d"), exp.notes])
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=expenses.xlsx'
+    workbook.save(response)
+    return response
+
+
+# ---------------- BACKUP JSON ----------------
+@login_required(login_url='login')
+def backup_json(request):
+    expenses = Expense.objects.filter(user=request.user)
+    data = list(expenses.values())
+    response = HttpResponse(json.dumps(data, default=str), content_type='application/json')
+    response['Content-Disposition'] = 'attachment; filename=backup.json'
+    return response
+
+
+# ---------------- RESTORE JSON ----------------
+@login_required(login_url='login')
+def restore_json(request):
+    if request.method == 'POST' and request.FILES.get('backup_file'):
+        file = request.FILES['backup_file']
+        data = json.load(file)
+        for item in data:
+            Expense.objects.update_or_create(
+                user=request.user,
+                title=item['title'],
+                amount=item['amount'],
+                category=item['category'],
+                date=item['date'],
+                notes=item.get('notes', ''),
+                recurring=item.get('recurring', False),
+                recurrence_type=item.get('recurrence_type', 'NONE')
+            )
+        return redirect('expense_list')
+    return render(request, 'tracker/restore.html')

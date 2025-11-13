@@ -12,6 +12,9 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
 
-    # Export
+    # Export/Backup/Restore
     path('export_csv/', views.export_csv, name='export_csv'),
+    path('export_xlsx/', views.export_xlsx, name='export_xlsx'),
+    path('backup_json/', views.backup_json, name='backup_json'),
+    path('restore_json/', views.restore_json, name='restore_json'),
 ]
